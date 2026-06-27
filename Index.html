@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Смени – 2026</title>
+<style>
+  :root {
+    --border: #e3e1d8;
+    --border-strong: #c9c6ba;
+    --text-primary: #1f1e1b;
+    --text-secondary: #6b6a64;
+    --text-muted: #95938a;
+    --surface-0: #faf9f5;
+    --surface-2: #ffffff;
+    --radius: 10px;
+    --day-bg: #faeeda;
+    --day-border: #ba7517;
+    --day-text: #412402;
+    --night-bg: #e6f1fb;
+    --night-border: #185fa5;
+    --night-text: #042c53;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    padding: 20px 16px calc(40px + env(safe-area-inset-bottom));
+    background: var(--surface-0);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-primary);
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: clamp(18px, 5vw, 22px); font-weight: 600; margin: 0 0 4px; }
+  .sub { font-size: 14px; color: var(--text-secondary); margin: 0 0 18px; }
+
+  .month-nav {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  }
+  .nav-btn {
+    flex: 0 0 auto; width: 44px; height: 44px; font-size: 20px;
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    background: var(--surface-2); color: var(--text-primary);
+    cursor: pointer; touch-action: manipulation;
+  }
+  .nav-btn:active { background: var(--surface-0); }
+  #month-select {
+    flex: 1 1 auto; height: 44px; font-size: 16px; font-weight: 600;
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    background: var(--surface-2); color: var(--text-primary);
+    padding: 0 10px; text-align: center; text-align-last: center;
+    -webkit-appearance: none; appearance: none;
+  }
+
+  .counts {
+    display: flex; gap: 16px; font-size: 14px; color: var(--text-secondary);
+    margin-bottom: 14px;
+  }
+  .counts b.day-count { color: var(--day-text); }
+  .counts b.night-count { color: var(--night-text); }
+
+  .dow-row, .grid {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px;
+  }
+  .dow-row { margin-bottom: 5px; }
+  .dow { font-size: 11px; color: var(--text-muted); text-align: center; padding-bottom: 2px; }
+
+  .day-cell {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px 3px;
+    display: flex; flex-direction: column; gap: 4px;
+    background: var(--surface-2);
+    transition: background 0.15s, border-color 0.15s;
+    min-height: 0;
+  }
+  .day-cell.has-day { background: var(--day-bg); border-color: var(--day-border); }
+  .day-cell.has-night { background: var(--night-bg); border-color: var(--night-border); }
+  .date-num { font-size: 12px; font-weight: 600; text-align: center; }
+  .date-num.weekend { color: var(--text-secondary); }
+
+  .shift-btn {
+    font-size: 11px; padding: 0 2px; line-height: 1.1;
+    min-height: 34px;
+    border: 1px solid var(--border-strong); border-radius: 7px;
+    background: var(--surface-2); color: var(--text-secondary);
+    cursor: pointer; touch-action: manipulation; user-select: none;
+    width: 100%;
+  }
+  .shift-btn:active { transform: scale(0.97); }
+  .shift-btn.sel-day { background: var(--day-border); border-color: var(--day-border); color: #fff; font-weight: 600; }
+  .shift-btn.sel-night { background: var(--night-border); border-color: var(--night-border); color: #fff; font-weight: 600; }
+  .shift-btn .short { display: none; }
+  @media (max-width: 420px) {
+    .shift-btn .full { display: none; }
+    .shift-btn .short { display: inline; }
+  }
+
+  .actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  button.action-btn {
+    flex: 1 1 auto; min-height: 46px; font-size: 14px; padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong); background: var(--surface-2);
+    cursor: pointer; color: var(--text-primary); touch-action: manipulation;
+  }
+  button.action-btn.primary { background: #1f1e1b; color: #fff; border-color: #1f1e1b; flex-basis: 100%; }
+
+  .summary {
+    margin-top: 22px; border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; background: var(--surface-2);
+  }
+  .summary h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+  .summary-empty { font-size: 13px; color: var(--text-muted); }
+  .summary-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .summary-list li {
+    display: flex; justify-content: space-between; padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .summary-list li:last-child { border-bottom: none; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .tag.day { background: var(--day-bg); color: var(--day-text); }
+  .tag.night { background: var(--night-bg); color: var(--night-text); }
+
+  .hint { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+
+  .toast {
+    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%;
+    transform: translateX(-50%);
+    background: #1f1e1b; color: #fff; padding: 10px 18px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Смени 2026</h1>
+  <p class="sub">Избери месец, после Дневна/Нощна за всеки ден, и накрая изтегли .ics.</p>
+
+  <div class="month-nav">
+    <button class="nav-btn" id="prev-month" aria-label="Предишен месец">‹</button>
+    <select id="month-select" aria-label="Избери месец"></select>
+    <button class="nav-btn" id="next-month" aria-label="Следващ месец">›</button>
+  </div>
+
+  <div class="counts">
+    <span>Дневни: <b class="day-count" id="day-count">0</b></span>
+    <span>Нощни: <b class="night-count" id="night-count">0</b></span>
+  </div>
+
+  <div class="dow-row">
+    <div class="dow">Пон</div><div class="dow">Вт</div><div class="dow">Ср</div>
+    <div class="dow">Чет</div><div class="dow">Пет</div><div class="dow">Съб</div><div class="dow">Нед</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="actions">
+    <button class="action-btn" id="clear-btn">Изчисти месеца</button>
+    <button class="action-btn" id="copy-btn">Копирай като текст</button>
+    <button class="action-btn primary" id="ics-btn">Изтегли .ics файл</button>
+  </div>
+
+  <div class="summary">
+    <h2>Избрани дни</h2>
+    <p class="summary-empty" id="summary-empty">Все още няма избрани смени.</p>
+    <ul class="summary-list" id="summary-list"></ul>
+  </div>
+
+  <p class="hint">Дневна смяна: 07:30–19:30 · Нощна смяна: 19:30–07:30 (на следващия ден). Годината е фиксирана на 2026.</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var YEAR = 2026;
+var BG_MONTHS = ["януари","февруари","март","април","май","юни","юли","август","септември","октомври","ноември","декември"];
+var BG_MONTHS_LATIN = ["yanuari","fevruari","mart","april","may","yuni","yuli","avgust","septemvri","oktomvri","noemvri","dekemvri"];
+
+var state = {};
+var currentMonth = 7;
+
+function pad(n) { return n < 10 ? "0" + n : "" + n; }
+function keyFor(month, day) { return month + "-" + day; }
+function daysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+function firstWeekdayMon0(year, month) {
+  var jsDay = new Date(year, month - 1, 1).getDay();
+  return (jsDay + 6) % 7;
+}
+
+function showToast(msg) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(function () { t.classList.remove("show"); }, 1800);
+}
+
+function populateMonthSelect() {
+  var sel = document.getElementById("month-select");
+  sel.innerHTML = "";
+  BG_MONTHS.forEach(function (name, idx) {
+    var opt = document.createElement("option");
+    opt.value = idx + 1;
+    opt.textContent = name.charAt(0).toUpperCase() + name.slice(1) + " 2026";
+    sel.appendChild(opt);
+  });
+  sel.value = currentMonth;
+}
+
+function onShiftClick(e) {
+  var btn = e.currentTarget;
+  var day = Number(btn.getAttribute("data-day"));
+  var shift = btn.getAttribute("data-shift");
+  var key = keyFor(currentMonth, day);
+  if (state[key] === shift) {
+    delete state[key];
+  } else {
+    state[key] = shift;
+  }
+  refreshUI();
+}
+
+function renderCalendar() {
+  var grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  var lead = firstWeekdayMon0(YEAR, currentMonth);
+  for (var i = 0; i < lead; i++) {
+    grid.appendChild(document.createElement("div"));
+  }
+
+  var total = daysInMonth(YEAR, currentMonth);
+  for (var d = 1; d <= total; d++) {
+    var wd = (lead + d - 1) % 7;
+    var isWeekend = wd >= 5;
+
+    var cell = document.createElement("div");
+    cell.className = "day-cell";
+    cell.setAttribute("data-cell-day", d);
+
+    var dateNum = document.createElement("div");
+    dateNum.className = "date-num" + (isWeekend ? " weekend" : "");
+    dateNum.textContent = d;
+    cell.appendChild(dateNum);
+
+    ["day", "night"].forEach(function (shift) {
+      var btn = document.createElement("button");
+      btn.className = "shift-btn";
+      btn.setAttribute("data-day", d);
+      btn.setAttribute("data-shift", shift);
+      btn.setAttribute("aria-pressed", "false");
+      btn.innerHTML = '<span class="full">' + (shift === "day" ? "Дневна" : "Нощна") + '</span>' +
+        '<span class="short">' + (shift === "day" ? "Дн" : "Нщ") + '</span>';
+      btn.addEventListener("click", onShiftClick);
+      cell.appendChild(btn);
+    });
+
+    grid.appendChild(cell);
+  }
+
+  var trailing = (7 - grid.children.length % 7) % 7;
+  for (var t = 0; t < trailing; t++) {
+    grid.appendChild(document.createElement("div"));
+  }
+
+  refreshUI();
+}
+
+function refreshUI() {
+  var dayCount = 0, nightCount = 0;
+  var daysSelected = [];
+
+  document.querySelectorAll(".day-cell").forEach(function (c) {
+    c.classList.remove("has-day", "has-night");
+  });
+  document.querySelectorAll(".shift-btn").forEach(function (b) {
+    b.classList.remove("sel-day", "sel-night");
+    b.setAttribute("aria-pressed", "false");
+  });
+
+  Object.keys(state).forEach(function (key) {
+    var parts = key.split("-");
+    var m = Number(parts[0]);
+    var d = Number(parts[1]);
+    if (m !== currentMonth) return;
+
+    var shift = state[key];
+    if (shift === "day") dayCount++; else nightCount++;
+    daysSelected.push(d);
+
+    var cell = document.querySelector('.day-cell[data-cell-day="' + d + '"]');
+    if (cell) cell.classList.add(shift === "day" ? "has-day" : "has-night");
+
+    var btn = document.querySelector('.shift-btn[data-day="' + d + '"][data-shift="' + shift + '"]');
+    if (btn) {
+      btn.classList.add(shift === "day" ? "sel-day" : "sel-night");
+      btn.setAttribute("aria-pressed", "true");
+    }
+  });
+
+  daysSelected.sort(function (a, b) { return a - b; });
+
+  document.getElementById("day-count").textContent = dayCount;
+  document.getElementById("night-count").textContent = nightCount;
+
+  var list = document.getElementById("summary-list");
+  var empty = document.getElementById("summary-empty");
+  list.innerHTML = "";
+  if (daysSelected.length === 0) {
+    empty.style.display = "block";
+  } else {
+    empty.style.display = "none";
+    daysSelected.forEach(function (d) {
+      var shift = state[keyFor(currentMonth, d)];
+      var li = document.createElement("li");
+      var label = document.createElement("span");
+      label.textContent = d + " " + BG_MONTHS[currentMonth - 1];
+      var tag = document.createElement("span");
+      tag.className = "tag " + shift;
+      tag.textContent = shift === "day" ? "Дневна" : "Нощна";
+      li.appendChild(label);
+      li.appendChild(tag);
+      list.appendChild(li);
+    });
+  }
+}
+
+function goToMonth(m) {
+  currentMonth = ((m - 1) % 12 + 12) % 12 + 1;
+  document.getElementById("month-select").value = currentMonth;
+  renderCalendar();
+}
+
+document.getElementById("month-select").addEventListener("change", function (e) {
+  goToMonth(Number(e.target.value));
+});
+document.getElementById("prev-month").addEventListener("click", function () {
+  goToMonth(currentMonth - 1);
+});
+document.getElementById("next-month").addEventListener("click", function () {
+  goToMonth(currentMonth + 1);
+});
+
+document.getElementById("clear-btn").addEventListener("click", function () {
+  Object.keys(state).forEach(function (key) {
+    if (Number(key.split("-")[0]) === currentMonth) delete state[key];
+  });
+  refreshUI();
+});
+
+document.getElementById("copy-btn").addEventListener("click", function () {
+  var days = Object.keys(state)
+    .filter(function (key) { return Number(key.split("-")[0]) === currentMonth; })
+    .map(function (key) { return Number(key.split("-")[1]); })
+    .sort(function (a, b) { return a - b; });
+
+  if (days.length === 0) {
+    showToast("Няма избрани дни.");
+    return;
+  }
+
+  var lines = days.map(function (d) {
+    var label = state[keyFor(currentMonth, d)] === "day" ? "Дневна" : "Нощна";
+    return YEAR + "-" + pad(currentMonth) + "-" + pad(d) + ": " + label;
+  });
+  var text = lines.join("\n");
+  navigator.clipboard.writeText(text).then(function () {
+    showToast("Копирано.");
+  }).catch(function () {
+    showToast("Неуспешно копиране.");
+  });
+});
+
+function icsDateTime(y, m, d, hh, mm) {
+  return y + pad(m) + pad(d) + "T" + pad(hh) + pad(mm) + "00";
+}
+
+document.getElementById("ics-btn").addEventListener("click", function () {
+  var days = Object.keys(state)
+    .filter(function (key) { return Number(key.split("-")[0]) === currentMonth; })
+    .map(function (key) { return Number(key.split("-")[1]); })
+    .sort(function (a, b) { return a - b; });
+
+  if (days.length === 0) {
+    showToast("Избери поне един ден преди да изтеглиш.");
+    return;
+  }
+
+  var now = new Date();
+  var stamp = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) +
+    "T" + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + pad(now.getUTCSeconds()) + "Z";
+
+  var lines = [];
+  lines.push("BEGIN:VCALENDAR");
+  lines.push("VERSION:2.0");
+  lines.push("PRODID:-//Relaytech//Smeni 2026//BG");
+  lines.push("CALSCALE:GREGORIAN");
+
+  days.forEach(function (d, idx) {
+    var shift = state[keyFor(currentMonth, d)];
+    var startH, startMin, endH, endMin, endDateObj;
+
+    if (shift === "day") {
+      startH = 7; startMin = 30; endH = 19; endMin = 30;
+      endDateObj = new Date(YEAR, currentMonth - 1, d);
+    } else {
+      startH = 19; startMin = 30; endH = 7; endMin = 30;
+      endDateObj = new Date(YEAR, currentMonth - 1, d + 1);
+    }
+
+    var dtstart = icsDateTime(YEAR, currentMonth, d, startH, startMin);
+    var dtend = icsDateTime(endDateObj.getFullYear(), endDateObj.getMonth() + 1, endDateObj.getDate(), endH, endMin);
+
+    lines.push("BEGIN:VEVENT");
+    lines.push("UID:smeni-" + YEAR + pad(currentMonth) + pad(d) + "-" + shift + "-" + idx + "@relaytech");
+    lines.push("DTSTAMP:" + stamp);
+    lines.push("DTSTART:" + dtstart);
+    lines.push("DTEND:" + dtend);
+    lines.push("SUMMARY:" + (shift === "day" ? "Дневна смяна" : "Нощна смяна"));
+    lines.push("END:VEVENT");
+  });
+
+  lines.push("END:VCALENDAR");
+
+  var icsContent = lines.join("\r\n");
+  var blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    // No <a download> here on purpose: forcing a download makes Safari save a
+    // plain file instead of recognizing it as a calendar. Navigating straight
+    // to the blob URL lets Safari hand it to the Calendar app's import screen.
+    window.location.href = url;
+  } else {
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "smeni_" + BG_MONTHS_LATIN[currentMonth - 1] + "_2026.ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    showToast("Файлът се изтегля.");
+  }
+});
+
+populateMonthSelect();
+renderCalendar();
+</script>
+</body>
+</html>
